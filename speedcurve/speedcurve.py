@@ -4,7 +4,7 @@ from .models import SpeedCurveCore
 from .notes import Note
 from .sites import Site
 from .tests import Test
-from .urls import Url
+from .urls import Url, SiteMetadata, UrlMetadata
 from .deployments import Deployment
 
 
@@ -77,16 +77,20 @@ class SpeedCurve(SpeedCurveCore):
             ]
             return notes
 
-    def sites(self):
+    def sites(self, days=None):
         """Retrieve all sites for account."""
         url = self._build_url('sites')
-        json = self._json(self._get(url), 200)
-        sites = None
-        if json:
-            sites = [
-                self._instance_or_null(Site, s) for s in json.get('sites')
-            ]
-        return sites
+        if days:
+            json = self._json(self._get(url, params={'days': days}), 200)
+        else:
+            json = self._json(self._get(url), 200)
+
+        if not json:
+            return
+
+        return [
+            self._instance_or_null(Site, s) for s in json.get('sites')
+        ]
 
     def test(self, id):
         """Retrieve test specified by test id.
@@ -96,8 +100,22 @@ class SpeedCurve(SpeedCurveCore):
         """
         url = self._build_url('tests', str(id))
         json = self._json(self._get(url), 200)
-        if json:
-            return self._instance_or_null(Test, json)
+        if not json:
+            return
+
+        return self._instance_or_null(Test, json)
+
+    def urls(self):
+        """Retrieves the metadata for all URLs across your sites."""
+        url = self._build_url('urls')
+        json = self._json(self._get(url), 200)
+        if not json:
+            return
+
+        return [
+            self._instance_or_null(SiteMetadata, s)
+            for s in json.get('sites')
+        ]
 
     def url(self, id, days=30, browser='all'):
         """Retrieve url specified by id.
@@ -108,11 +126,15 @@ class SpeedCurve(SpeedCurveCore):
         :returns: :class:`Url <speedcurve.urls.Url>`
 
         """
+        if isinstance(id, UrlMetadata):
+            id = id.id
         url = self._build_url('urls', str(id))
         params = {
             'days': days,
             'browser': browser
         }
         json = self._json(self._get(url, params=params), 200)
-        if json:
-            return self._instance_or_null(Url, json)
+        if not json:
+            return
+
+        return self._instance_or_null(Url, json)
